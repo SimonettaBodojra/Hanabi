@@ -1,0 +1,18 @@
+05/26/2022 12:16:02 AM INFO: Hanabi server started on 127.0.0.1:1024
+05/26/2022 12:17:54 AM INFO: Connected by: ('127.0.0.1', 54613)
+05/26/2022 12:17:54 AM INFO: Player connected: simonetta
+05/26/2022 12:18:11 AM INFO: Connected by: ('127.0.0.1', 54614)
+05/26/2022 12:18:11 AM INFO: Player connected: enzham
+05/26/2022 12:19:03 AM INFO: Player ready: simonetta
+05/26/2022 12:26:28 AM INFO: Player ready: enzham
+05/26/2022 12:26:28 AM INFO: Game start! Between: ['simonetta', 'enzham']
+05/26/2022 12:26:28 AM INFO: Ok, let's start the game!
+05/26/2022 12:27:06 AM INFO: Showing hand to: enzham
+05/26/2022 12:27:41 AM INFO: Showing hand to: simonetta
+05/26/2022 12:40:07 AM INFO: Player simonetta providing hint to enzham: cards with value 2 are in positions: [0, 2, 4]
+05/26/2022 12:40:27 AM INFO: Showing hand to: enzham
+05/26/2022 12:42:16 AM INFO: Showing hand to: enzham
+05/26/2022 12:42:24 AM INFO: Showing hand to: simonetta
+05/26/2022 11:17:40 AM WARNING: Player disconnected: simonetta
+05/26/2022 11:17:44 AM WARNING: Player disconnected: enzham
+05/26/2022 11:17:44 AM INFO: Shutting down server
