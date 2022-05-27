@@ -16,3 +16,13 @@
 05/26/2022 11:17:40 AM WARNING: Player disconnected: simonetta
 05/26/2022 11:17:44 AM WARNING: Player disconnected: enzham
 05/26/2022 11:17:44 AM INFO: Shutting down server
+05/26/2022 11:40:20 PM INFO: Hanabi server started on 127.0.0.1:1024
+05/26/2022 11:40:34 PM INFO: Connected by: ('127.0.0.1', 56127)
+05/26/2022 11:40:34 PM INFO: Player connected: simonetta
+05/26/2022 11:40:49 PM INFO: Connected by: ('127.0.0.1', 56128)
+05/26/2022 11:40:49 PM INFO: Player connected: enzham
+05/26/2022 11:40:51 PM INFO: Player ready: simonetta
+05/26/2022 11:40:53 PM INFO: Player ready: enzham
+05/26/2022 11:40:53 PM INFO: Game start! Between: ['simonetta', 'enzham']
+05/26/2022 11:40:53 PM INFO: Ok, let's start the game!
+05/26/2022 11:40:56 PM INFO: Closing the server...

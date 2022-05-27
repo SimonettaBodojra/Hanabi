@@ -12,7 +12,7 @@ class GameData(object):
     def serialize(self) -> bytes:
         data = pickle.dumps(self)
         datalen = len(data)
-        binaryDataLen: bytes  = datalen.to_bytes(2, 'little')
+        binaryDataLen: bytes = datalen.to_bytes(2, 'little')
         totdata = bytearray(binaryDataLen) + data
         #ensure no multiple data on same request
         for _ in range(datalen + len(binaryDataLen), DATASIZE):

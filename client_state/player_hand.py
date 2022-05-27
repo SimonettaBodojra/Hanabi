@@ -16,6 +16,7 @@ class Hand:
         return tmp_str
 
 
+
 class ObservableCard:
 
     def __init__(self, value: int, color: str):
