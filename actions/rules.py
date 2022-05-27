@@ -21,6 +21,5 @@ class PlaySafeCart(Rule):
 
         playable_cards = [item for count, item in state.hand if playable_cards_bool[count]]
 
-        if sum(playable_cards_bool) > 1:
+       # if sum(playable_cards_bool) > 1:
             #Choose the one that makes another player's card playable
-            
