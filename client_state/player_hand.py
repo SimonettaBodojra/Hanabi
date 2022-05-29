@@ -1,7 +1,6 @@
 from game import Player
-from typing import Dict, Tuple
-from card_info import Value, Color
-from card_info import DECK_VALUE_STRUCTURE
+from typing import Dict
+from client_state.card_info import Value, Color, DECK_VALUE_STRUCTURE
 
 class Hand:
 
@@ -16,19 +15,23 @@ class Hand:
         return tmp_str
 
 
-
 class ObservableCard:
 
-    def __init__(self, value: int, color: str):
+    def __init__(self, value: int, color: str, is_color_hinted: bool = False, is_value_hinted: bool = False):
 
         self.value = Value(value)
-        self.color = Color.fromStringColor(color)
+        self.color = Color(color)
+        self.is_color_hinted = is_color_hinted
+        self.is_value_hinted = is_value_hinted
 
     def __str__(self):
         return f"{self.color} {self.value}"
 
     def __hash__(self):
         return (self.color, self.value).__hash__()
+
+    def is_hintable(self):
+        return not (self.is_color_hinted and self.is_color_hinted)
 
 
 class HiddenCard:

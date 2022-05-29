@@ -1,14 +1,11 @@
 import GameData
 from game import Player
-from card_info import Color, Value, DECK_SIZE, DECK_COLOR_STRUCTURE, DECK_VALUE_STRUCTURE
-from player_hand import Hand, ObservableCard, HiddenCard
-from typing import Dict, List
+from client_state.card_info import Color, Value, DECK_SIZE, DECK_COLOR_STRUCTURE, DECK_VALUE_STRUCTURE
+from client_state.player_hand import Hand, ObservableCard, HiddenCard
+from typing import Dict, List, Set
 
 
 class AgentState:
-
-    USEFULNESS_THRESHOLD = 0.7
-    USELESSNESS_THRESHOLD = 0.7
 
     def __init__(self, game_state: GameData.ServerGameStateData, agent_name: str = "Agent1"):
 
@@ -31,6 +28,17 @@ class AgentState:
                 break
         self.update_state(game_state)
         self.is_state_updated = False
+        self.just_hinted: Set[int] = set()
+
+    def on_hint_received(self, hint: Color or Value, card_indexes: List[int]):
+        self.just_hinted.union(card_indexes)
+        for i in card_indexes:
+            if type(hint) is Color:
+                self.hand[i].set_hint_color(hint)
+            elif type(hint) is Value:
+                self.hand[i].set_hint_value(hint)
+            else:
+                raise Exception("Unknown hint type")
 
     def get_observable_cards(self) -> Dict[ObservableCard, int]:
         #{Colore,valore: count}
@@ -82,7 +90,7 @@ class AgentState:
         # 0 quando è vuoto, altrimenti con l'ultima valore della carta nello stack
         self.fireworks: Dict[Color, int]
         for color, card_list in game_state.tableCards.items():
-            color = Color.fromStringColor(color)
+            color = Color(color)
             self.fireworks[color] = 0 if len(card_list) == 0 else card_list[-1].value
 
         # Inizializzo la pila degli scarti come un dizionario che ha per chiave
@@ -148,7 +156,7 @@ class AgentState:
 
         return card_value == self.get_playable_cards()[card_color]
 
-    def is_card_discardable(self, card) -> bool:
+    def is_card_useless(self, card) -> bool:
 
         if type(card) is HiddenCard:
 
@@ -168,7 +176,7 @@ class AgentState:
 
         return card_value <= self.fireworks[card_color]  # ritorna il valore associato all' enum Value
 
-    def is_card_useful(self, card: HiddenCard) -> (bool, float):
+    def get_usefulness_probability(self, card: HiddenCard) -> float:
         playable_cards = self.get_playable_cards()
 
         probability_list = []
@@ -176,9 +184,9 @@ class AgentState:
             probability_list.append(card.possible_colors[color] * card.possible_values[value])
 
         max_probability = max(probability_list)
-        return max_probability >= self.USEFULNESS_THRESHOLD, max_probability
+        return max_probability
 
-    def is_card_useless(self, card: HiddenCard) -> (bool, float):
+    def get_dispensable_probability(self, card: HiddenCard) -> float:
 
         probability_list = []
         for color, count in self.fireworks:
@@ -188,4 +196,18 @@ class AgentState:
             probability_list.append(total_card_probability)
 
         max_probability = max(probability_list)
-        return max_probability >= self.USELESSNESS_THRESHOLD, max_probability
+
+        return max_probability
+
+    def check_card_usability(self, card: HiddenCard, check: str, useful_threshold: float = .7, dispensable_threshold: float = .7) -> bool:
+
+        if check == "playable":
+            return self.is_card_playable(card)
+        elif check == "useful":
+            return useful_threshold <= self.get_usefulness_probability(card)
+        elif check == "dispensable":
+            return dispensable_threshold <= self.get_dispensable_probability(card)
+        elif check == "useless":
+            return self.is_card_useless(card)
+        else:
+            raise Exception("Wrong usability check!")

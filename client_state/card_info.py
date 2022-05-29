@@ -10,16 +10,7 @@ class Value(Enum):
     FIVE = 5
 
     def __str__(self) -> str:
-        if self == Value.ONE:
-            return "1"
-        elif self == Value.TWO:
-            return "2"
-        elif self == Value.THREE:
-            return "3"
-        elif self == Value.FOUR:
-            return "4"
-        else:
-            return "5"
+        return str(self.value)
 
     @staticmethod
     def getValues() -> Set:
@@ -27,42 +18,18 @@ class Value(Enum):
 
 
 class Color(Enum):
-    WHITE = 0
-    RED = 1
-    BLUE = 2
-    YELLOW = 3
-    GREEN = 4
+    WHITE = "white"
+    RED = "red"
+    BLUE = "blue"
+    YELLOW = "yellow"
+    GREEN = "green"
 
     def __str__(self) -> str:
-        if self == Color.WHITE:
-            return "White"
-        elif self == Color.RED:
-            return "Red"
-        elif self == Color.BLUE:
-            return "Blue"
-        elif self == Color.YELLOW:
-            return "Yellow"
-        else:
-            return "Green"
+        return self.value
 
     @staticmethod
     def getColors() -> Set:
         return {Color.WHITE, Color.RED, Color.BLUE, Color.YELLOW, Color.GREEN}
-
-    @staticmethod
-    def fromStringColor(color: str):
-        if color == "white":
-            return Color.WHITE
-        elif color == "red":
-            return Color.RED
-        elif color == "green":
-            return Color.GREEN
-        elif color == "blue":
-            return Color.BLUE
-        elif color == "yellow":
-            return Color.YELLOW
-        else:
-            raise Exception("Unknown card color")
 
 
 DECK_VALUE_STRUCTURE = {Value.ONE: 15, Value.TWO: 10, Value.THREE: 10, Value.FOUR: 10, Value.FIVE: 5}

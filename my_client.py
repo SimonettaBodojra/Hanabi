@@ -5,13 +5,15 @@ import GameData
 from constants import HOST, PORT, DATASIZE
 from sys import stdout
 from enum import Enum
-from actions.actions import Action, Hint, PlayCard, DiscardCard
+from actions.actions import Action, HintResult, PlayCardResult, DiscardCardResult
 from typing import Tuple
+from client_state.player_hand import HiddenCard, ObservableCard
+from game import Card
 
 logging.basicConfig(
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
-    level=logging.INFO,
+    level=logging.DEBUG,
 )
 
 
@@ -22,6 +24,9 @@ class ClientState(Enum):
     PLAYING = "PLAYING"
     GAME_OVER = "GAME OVER"
 
+    def __str__(self):
+        return self.value
+
 
 class Client(ABC):
     """Classe base per interagire col server"""
@@ -31,9 +36,20 @@ class Client(ABC):
         self.host = host
         self.port = port
         self.socket = None
-        self.state = ClientState.NOT_CONNECTED
+        self.client_state = ClientState.NOT_CONNECTED
         self.current_player = None
         self.__connect_to_server()
+
+    def __read_response(self) -> GameData.ServerToClientData:
+        """Legge il prossimo messaggio del server"""
+        data = self.socket.recv(DATASIZE)
+        response = GameData.GameData.deserialize(data)
+        return response
+
+    def __send_request(self, request: GameData.ClientToServerData):
+        """Invia una richiesta generica al server"""
+        self.socket.send(request.serialize())
+        return
 
     def __connect_to_server(self):
         # creo il socket e mi connetto al server
@@ -49,30 +65,13 @@ class Client(ABC):
         if type(response) is not GameData.ServerPlayerConnectionOk:
             raise ConnectionError("There was an error while connecting to the server.")
 
-        self.state = ClientState.CONNECTED
+        self.client_state = ClientState.CONNECTED
         logging.info(
             f"Connection accepted by the server. {self.player_name} is waiting in lobby"
         )
 
-    def __read_response(self) -> GameData.ServerToClientData:
-        """Legge il prossimo messaggio del server"""
-        data = self.socket.recv(DATASIZE)
-        response = GameData.GameData.deserialize(data)
-        return response
-
-    def __send_request(self, request: GameData.ClientToServerData):
-        """Invia una richiesta generica al server"""
-        self.socket.send(request.serialize())
-        return
-
-    def __send_game_status_request(self):
-        """Richiede lo stato del gioco al server"""
-        request = GameData.ClientGetGameStateRequest(self.player_name)
-        self.__send_request(request)
-        return
-
     def send_start(self):
-        if self.state != ClientState.CONNECTED:
+        if self.client_state != ClientState.CONNECTED:
             raise RuntimeError("You must be connected")
 
         start_request = GameData.ClientPlayerStartRequest(self.player_name)
@@ -83,55 +82,51 @@ class Client(ABC):
         if type(response) is not GameData.ServerPlayerStartRequestAccepted:
             raise ConnectionError("Invalid response received on Start request.")
 
-        self.state = ClientState.LOBBY
+        self.client_state = ClientState.LOBBY
         logging.info(
             msg=f"{self.player_name} - Players ready: {response.acceptedStartRequests}/{response.connectedPlayers}"
         )
 
     def wait_start(self):
-        if self.state != ClientState.LOBBY:
+        if self.client_state != ClientState.LOBBY:
             raise RuntimeError("You are not in lobby")
 
         # read until it's a ServerStart
-        while self.state == ClientState.LOBBY:
+        while self.client_state == ClientState.LOBBY:
             response = self.__read_response()
             if type(response) is GameData.ServerStartGameData:
                 ready_request = GameData.ClientPlayerReadyData(self.player_name)
                 self.__send_request(ready_request)
-                self.state = ClientState.IN_GAME
+                self.client_state = ClientState.PLAYING
 
-                state = self.fetch_state()
+                state = self.get_game_status()
                 self._init_game_state(state)
 
                 logging.debug(msg=f"{self.player_name} - ready request sent")
                 logging.info(msg=f"{self.player_name} - Game started")
             logging.debug(msg=f"response received: {response} of type {type(response)}")
+
         return True
 
-    @abstractmethod
-    def _init_game_state(self, state: GameData.ServerGameStateData):
-        self.current_player = state.currentPlayer
-
     def run(self):
-        if self.state != ClientState.IN_GAME:
+        if self.client_state != ClientState.PLAYING:
             return
 
-        while self.state == ClientState.IN_GAME:
+        while self.client_state == ClientState.PLAYING:
             # Se è il mio turno allora trovo la best action e la gioco
+            logging.debug(f"TURN: {self.current_player}")
             if self.current_player == self.player_name:
+                logging.debug(f"DOING MY ACTION")
                 action = self.get_next_action()
                 action_result, new_state = self.__play_action(action)
             else:
+                logging.debug(f"WAITING OTHER PLAYERS ACTION")
                 action_result, new_state = self.fetch_action_result()
+
             if action_result is not None:  # possbible for game over
                 self.update_state_with_action(action_result, new_state)
-            stdout.flush()
-        return
 
-    @abstractmethod
-    def get_next_action(self) -> Action:
-        """Sarà implementata dai singoli agenti che erediteranno da questa classe"""
-        raise NotImplementedError
+            stdout.flush()
 
     def __play_action(self, action: Action):
         # Invio la request corrispondente all'azione al server
@@ -162,36 +157,27 @@ class Client(ABC):
             raise ValueError(f"InvalidData received: {response.data}")
         elif type(response) is GameData.ServerGameOver:
             logging.info("The game is over.")
-            self.state = ClientState.GAME_OVER
+            self.client_state = ClientState.GAME_OVER
             return None, None
 
         logging.debug(response)
-        new_state = self.fetch_state()
+        new_state = self.get_game_status()
         played_action = self.build_action_from_server_response(response, new_state)
         return played_action, new_state
 
-    def fetch_state(self) -> GameData.ServerGameStateData:
+    def get_game_status(self) -> GameData.ServerGameStateData:
         """Recupera lo stato del gioco"""
-        if self.state != ClientState.IN_GAME:
+        if self.client_state != ClientState.PLAYING:
             raise RuntimeError("You must be in game")
 
-        self.__send_game_status_request()
+        request = GameData.ClientGetGameStateRequest(self.player_name)
+        self.__send_request(request)
+
         response = self.__read_response()
         while not type(response) is GameData.ServerGameStateData:
             response = self.__read_response()
 
         return response
-        # raise ValueError(f"Invalid state received. {response} received.")
-
-    @abstractmethod
-    def update_state_with_action(
-        self,
-        played_action: GameData.ServerToClientData,
-        new_state: GameData.ServerGameStateData,
-    ):
-        """Update current player"""
-        self.current_player = new_state.currentPlayer
-        return
 
     def build_action_from_server_response(
         self, data: GameData.ServerToClientData, new_state: GameData.ServerToClientData
@@ -199,43 +185,57 @@ class Client(ABC):
         """Ricrea l'action di un altro giocatore a partire dai dati ritornati dal server e aggiorna lo stato"""
 
         if type(data) is GameData.ServerHintData:
-            return Hint.from_server_hint(data)
+            return HintResult(data)
 
         elif type(data) is GameData.ServerActionValid:
             # a discard has been performed :^)
             # include the drawn card in the created Discard action
             sender = data.lastPlayer
-            card_index = data.cardHandIndex
-            card_discarded = data.card
-            card_drawn = self.get_new_sender_card(sender, new_state, card_index)
-            return Discard(sender, card_index, card_discarded, card_drawn)
+            card_drawn = self.draw_card(sender, new_state)
+            return DiscardCardResult(data, card_drawn)
 
         elif type(data) is GameData.ServerPlayerMoveOk:
             # a card has been successfully played :^D
             sender = data.lastPlayer
-            card_index = data.cardHandIndex
-            real_card = data.card
-            card_drawn = self.get_new_sender_card(sender, new_state, card_index)
-            result = Play.GOOD_MOVE
-            return Play(sender, card_index, real_card, card_drawn, result)
+            card_drawn = self.draw_card(sender, new_state)
+            return PlayCardResult(data, card_drawn)
 
         elif type(data) is GameData.ServerPlayerThunderStrike:
-            # a card has been unsuccessfully played :^@
+            # La carta giocata non viene aggiunta ai firework
             sender = data.lastPlayer
-            card_index = data.cardHandIndex
-            real_card = data.card
-            card_drawn = self.get_new_sender_card(sender, new_state, card_index)
-            result = Play.THUNDERSTRIKE
-            return Play(sender, card_index, real_card, card_drawn, result)
+            card_drawn = self.draw_card(sender, new_state)
+            return PlayCardResult(data, card_drawn)
         else:
-            raise ValueError("Invalid action response: {data}")
+            raise ValueError(f"Invalid action response: {data}")
 
-    def get_new_sender_card(
-        self, sender: str, new_state: GameData.ServerGameStateData, card_index: int
-    ):
+    def draw_card(
+        self, sender: str, new_state: GameData.ServerGameStateData
+    ) -> HiddenCard or ObservableCard:
+        """Trova la carta pescata dal giocatore in questione"""
         if sender == self.player_name:
-            return UnknownCard()
+            return HiddenCard()
         for p in new_state.players:
             if p.name == sender:
-                return p.hand[-1]  # drawn card are appended to the player hand
-        raise ValueError("Unable to fetch the new drawn card!!")
+                # le carte pescate vengono sempre appese alla fine della lista
+                card: Card = p.hand[-1]
+                return ObservableCard(card.value, card.color)
+        raise ValueError("Player not found")
+
+    @abstractmethod
+    def _init_game_state(self, state: GameData.ServerGameStateData):
+        self.current_player = state.currentPlayer
+
+    @abstractmethod
+    def update_state_with_action(
+            self,
+            played_action: Action,
+            new_state: GameData.ServerGameStateData,
+    ):
+        """Update current player"""
+        self.current_player = new_state.currentPlayer
+        return
+
+    @abstractmethod
+    def get_next_action(self) -> Action:
+        """Sarà implementata dai singoli agenti che erediteranno da questa classe"""
+        raise NotImplementedError

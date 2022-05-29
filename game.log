@@ -26,3 +26,32 @@
 05/26/2022 11:40:53 PM INFO: Game start! Between: ['simonetta', 'enzham']
 05/26/2022 11:40:53 PM INFO: Ok, let's start the game!
 05/26/2022 11:40:56 PM INFO: Closing the server...
+05/29/2022 03:07:52 AM INFO: Hanabi server started on 127.0.0.1:1024
+05/29/2022 03:08:05 AM INFO: Connected by: ('127.0.0.1', 56601)
+05/29/2022 03:08:05 AM INFO: Player connected: player1
+05/29/2022 03:08:25 AM INFO: Connected by: ('127.0.0.1', 56602)
+05/29/2022 03:08:25 AM INFO: Player connected: Agent_0
+05/29/2022 03:08:25 AM INFO: Player ready: Agent_0
+05/29/2022 03:08:29 AM INFO: Player ready: player1
+05/29/2022 03:08:29 AM INFO: Game start! Between: ['player1', 'Agent_0']
+05/29/2022 03:08:29 AM INFO: Ok, let's start the game!
+05/29/2022 03:08:29 AM INFO: Showing hand to: Agent_0
+05/29/2022 03:08:34 AM INFO: player1: card played and correctly put on the table
+05/29/2022 03:08:34 AM INFO: Showing hand to: Agent_0
+05/29/2022 03:08:34 AM INFO: Agent_0: card played and correctly put on the table
+05/29/2022 03:08:34 AM INFO: Showing hand to: Agent_0
+05/29/2022 03:08:46 AM INFO: Showing hand to: Agent_0
+05/29/2022 03:08:46 AM INFO: Agent_0: card played and correctly put on the table
+05/29/2022 03:08:46 AM INFO: Showing hand to: Agent_0
+05/29/2022 03:08:50 AM INFO: Showing hand to: Agent_0
+05/29/2022 03:08:50 AM INFO: Game over, people.
+05/29/2022 03:08:50 AM INFO: Please, close the server now
+05/29/2022 03:08:50 AM INFO: Score: 0; message: Booooooooooooring!
+05/29/2022 03:08:50 AM INFO: Game over
+05/29/2022 03:08:50 AM INFO: Game score: 0
+05/29/2022 03:08:50 AM INFO: Starting new game
+05/29/2022 03:08:50 AM INFO: Starting new game
+05/29/2022 03:08:50 AM INFO: Ok, let's start the game!
+05/29/2022 03:08:50 AM WARNING: Player disconnected: Agent_0
+05/29/2022 03:09:07 AM WARNING: Player disconnected: player1
+05/29/2022 03:09:07 AM INFO: Shutting down server
