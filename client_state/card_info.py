@@ -12,6 +12,9 @@ class Value(Enum):
     def __str__(self) -> str:
         return str(self.value)
 
+    def __repr__(self):
+        return self.__str__()
+
     @staticmethod
     def getValues() -> Set:
         return {Value.ONE, Value.TWO, Value.THREE, Value.FOUR, Value.FIVE}
@@ -27,6 +30,9 @@ class Color(Enum):
     def __str__(self) -> str:
         return self.value
 
+    def __repr__(self):
+        return self.__str__()
+
     @staticmethod
     def getColors() -> Set:
         return {Color.WHITE, Color.RED, Color.BLUE, Color.YELLOW, Color.GREEN}
@@ -34,5 +40,6 @@ class Color(Enum):
 
 DECK_VALUE_STRUCTURE = {Value.ONE: 15, Value.TWO: 10, Value.THREE: 10, Value.FOUR: 10, Value.FIVE: 5}
 DECK_COLOR_STRUCTURE = {Color.WHITE: 10, Color.YELLOW: 10, Color.GREEN: 10, Color.BLUE: 10, Color.RED: 10}
+DECK_SINGLE_FIREWORK_STRUCTURE = {Value.ONE: 3, Value.TWO: 2, Value.THREE: 2, Value.FOUR: 2, Value.FIVE: 1}
 
 DECK_SIZE = 50

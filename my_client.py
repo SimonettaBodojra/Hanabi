@@ -13,7 +13,7 @@ from game import Card
 logging.basicConfig(
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
-    level=logging.DEBUG,
+    level=logging.INFO,
 )
 
 
@@ -102,9 +102,7 @@ class Client(ABC):
                 state = self.get_game_status()
                 self._init_game_state(state)
 
-                logging.debug(msg=f"{self.player_name} - ready request sent")
                 logging.info(msg=f"{self.player_name} - Game started")
-            logging.debug(msg=f"response received: {response} of type {type(response)}")
 
         return True
 
@@ -114,16 +112,18 @@ class Client(ABC):
 
         while self.client_state == ClientState.PLAYING:
             # Se è il mio turno allora trovo la best action e la gioco
-            logging.debug(f"TURN: {self.current_player}")
+            logging.info(f"TURN: {self.current_player}")
             if self.current_player == self.player_name:
-                logging.debug(f"DOING MY ACTION")
                 action = self.get_next_action()
                 action_result, new_state = self.__play_action(action)
-            else:
-                logging.debug(f"WAITING OTHER PLAYERS ACTION")
-                action_result, new_state = self.fetch_action_result()
+                logging.info(action_result)
 
-            if action_result is not None:  # possbible for game over
+            else:
+                logging.info(f"WAITING OTHER PLAYERS ACTION")
+                action_result, new_state = self.fetch_action_result()
+                logging.info(action_result)
+
+            if action_result is not None:  # se è None allora è game-over
                 self.update_state_with_action(action_result, new_state)
 
             stdout.flush()
@@ -160,7 +160,6 @@ class Client(ABC):
             self.client_state = ClientState.GAME_OVER
             return None, None
 
-        logging.debug(response)
         new_state = self.get_game_status()
         played_action = self.build_action_from_server_response(response, new_state)
         return played_action, new_state
@@ -213,10 +212,13 @@ class Client(ABC):
     ) -> HiddenCard or ObservableCard:
         """Trova la carta pescata dal giocatore in questione"""
         if sender == self.player_name:
-            return HiddenCard()
+            return HiddenCard(is_new=True)
         for p in new_state.players:
             if p.name == sender:
                 # le carte pescate vengono sempre appese alla fine della lista
+                if new_state.handSize != len(p.hand):
+                    return None
+
                 card: Card = p.hand[-1]
                 return ObservableCard(card.value, card.color)
         raise ValueError("Player not found")

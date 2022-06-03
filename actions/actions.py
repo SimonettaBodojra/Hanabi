@@ -33,6 +33,9 @@ class Hint(Action):
         return ClientHintData(self.source_player, self.destination_player,
                               hint_type, self.hint.value)
 
+    def __str__(self):
+        return f"{self.source_player} hinted {self.destination_player} with {self.hint}"
+
 
 class HintResult(Hint):
 
@@ -49,15 +52,21 @@ class HintResult(Hint):
 
         super().__init__(server_hint.source, server_hint.destination, hint)
 
+    def __str__(self):
+        return f"{self.source_player} hinted {self.destination_player} with {self.hint} in positions {self.positions}"
+
 
 class PlayCard(Action):
     def __init__(self, source_player: str, card_index: int):
         super().__init__()
-        self.game_data = ClientPlayerPlayCardRequest(sender=source_player, handCardOrdered=card_index)
+        self.source_player = source_player
+        self.card_index = card_index
 
     def client_to_server_data(self) -> GameData.ClientToServerData:
-        return self.game_data
+        return ClientPlayerPlayCardRequest(sender=self.source_player, handCardOrdered=self.card_index)
 
+    def __str__(self):
+        return f"{self.source_player} played the card in position {self.card_index}"
 
 class PlayCardResult(PlayCard):
 
@@ -81,14 +90,21 @@ class PlayCardResult(PlayCard):
         self.card_drawn = card_drawn
         super().__init__(server_play_card_result.lastPlayer, server_play_card_result.cardHandIndex)
 
+    def __str__(self):
+        return f"{self.source_player} played the card {self.played_card}"
+
 
 class DiscardCard(Action):
     def __init__(self, source_player: str, card_index: int):
         super().__init__()
-        self.game_data = ClientPlayerDiscardCardRequest(sender=source_player, handCardOrdered=card_index)
+        self.source_player = source_player
+        self.card_index = card_index
 
     def client_to_server_data(self) -> GameData.ClientToServerData:
-        return self.game_data
+        return ClientPlayerDiscardCardRequest(sender=self.source_player, handCardOrdered=self.card_index)
+
+    def __str__(self):
+        return f"{self.source_player} discarded the card in position {self.card_index}"
 
 
 class DiscardCardResult(DiscardCard):
@@ -102,3 +118,5 @@ class DiscardCardResult(DiscardCard):
         self.card_drawn = card_drawn
         super().__init__(server_discard_result.lastPlayer, server_discard_result.cardHandIndex)
 
+    def __str__(self):
+        return f"{self.source_player} discarded the card {self.discarded_card}"
