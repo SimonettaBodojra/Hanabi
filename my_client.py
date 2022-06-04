@@ -31,7 +31,7 @@ class ClientState(Enum):
 class Client(ABC):
     """Classe base per interagire col server"""
 
-    def __init__(self, player_name: str, host: str = HOST, port: int = PORT):
+    def __init__(self, player_name: str, host: str = HOST, port: int = PORT, game_number: int = 1):
         self.player_name = player_name
         self.starting_hand_size = None
         self.host = host
@@ -39,6 +39,8 @@ class Client(ABC):
         self.socket = None
         self.client_state = ClientState.NOT_CONNECTED
         self.current_player = None
+        self.game_number = game_number
+        self.current_game = 0
         self.__connect_to_server()
 
     def __read_response(self) -> GameData.ServerToClientData:
@@ -105,7 +107,18 @@ class Client(ABC):
 
                 logging.info(msg=f"{self.player_name} - Game started")
 
-        return True
+    def restart(self):
+        if self.client_state != ClientState.GAME_OVER:
+            raise RuntimeError("Match is not over yet")
+
+        self.client_state = ClientState.PLAYING
+
+        state = self.get_game_status()
+        self._init_game_state(state)
+
+        logging.info(msg=f"{self.player_name} - Game started")
+
+        self.run()
 
     def run(self):
         if self.client_state != ClientState.PLAYING:
@@ -126,6 +139,11 @@ class Client(ABC):
 
             if action_result is not None:  # se è None allora è game-over
                 self.update_state_with_action(action_result, new_state)
+
+            elif self.client_state == ClientState.GAME_OVER and self.current_game + 1 < self.game_number:
+                self.current_game += 1
+                stdout.flush()
+                self.restart()
 
             stdout.flush()
 

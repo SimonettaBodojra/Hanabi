@@ -107,7 +107,8 @@ class PlayJustHinted(Rule):
 
 # non è utile quando si utilizzano le HintRules con next_player a False
 class PlayJustHintedIfSingle(Rule):
-    def __init__(self, state: AgentState):
+    def __init__(self, state: AgentState, usefulness_threshold: float = .6):
+        self.usefulness_threshold = usefulness_threshold
         super().__init__(state)
 
     def rule_to_action(self) -> Action:
@@ -119,7 +120,27 @@ class PlayJustHintedIfSingle(Rule):
         if len(just_hinted) != 1:
             return None
 
-        return PlayCard(self.sender, just_hinted[0])
+        selected_card_index = just_hinted[0]
+        selected_card = self.state.hand[selected_card_index]
+
+        if self.state.check_card_usability(selected_card, "playable"):
+            return PlayCard(self.sender, selected_card_index)
+
+        if selected_card.hasColorHint():
+            playable_value_of_color = self.state.get_playable_cards().get(selected_card.hint_color)
+            if playable_value_of_color is None or selected_card.possible_values[playable_value_of_color] < self.usefulness_threshold:
+                return None
+        else:
+            playable_cards = self.state.get_playable_cards()
+            possible_playable_colors = [color for color, value in playable_cards.items() if value == selected_card.hint_value]
+            if len(possible_playable_colors) == 0:
+                return None
+
+            max_probability = max([prob for color, prob in selected_card.possible_colors.items()])
+            if max_probability < self.usefulness_threshold:
+                return None
+
+        return PlayCard(self.sender, selected_card_index)
 
 
 # ------ DISCARD RULES (6) ------
@@ -422,10 +443,11 @@ class HintUsefulCard(HintRule):
 class HintFullKnowledge(HintRule):
 
 #Observable card che ha solamente uno dei due hint,
-#Dandogli un hint la renderebbe playable or useful
+#Dandogli un hint la renderebbe coerente con il check svolto
 
-    def __init__(self, state: AgentState, next_player: bool = True):
+    def __init__(self, state: AgentState, check: str, next_player: bool = True):
         super().__init__(state, next_player)
+        self.check = check
 
     def rule_to_action(self) -> Action:
         if self.state.used_blue_token == 8:
@@ -441,8 +463,7 @@ class HintFullKnowledge(HintRule):
             hintable_card_indexes = [idx for idx, card in enumerate(player[1])
                                      if (card.is_value_hinted and not card.is_color_hinted) or
                                      (card.is_color_hinted and not card.is_value_hinted)
-                                     if self.state.is_card_playable(card) or
-                                     self.state.check_card_usability(card, "useful")]
+                                     if self.state.check_card_usability(card, self.check)]
 
             if len(hintable_card_indexes) > 0:
                 selected_player = player
@@ -454,31 +475,21 @@ class HintFullKnowledge(HintRule):
         #Trovato il giocatore che ha delle carte con almeno uno dei due hint
         #che siano o playable o useful, si seleziona con priorità prima la playable
 
-        useful_card = None
-        playable_card = None
+        checked_card = None
 
         for idx in hintable_card_indexes:
             hintable_card = selected_player[1][idx]
-            if self.state.check_card_usability(hintable_card, "playable"):
-                playable_card = hintable_card
-                break
-            elif self.state.check_card_usability(hintable_card, "useful"):
-                useful_card = hintable_card
+            if self.state.check_card_usability(hintable_card, self.check):
+                checked_card = hintable_card
                 break
 
-        if playable_card is not None:
-            if playable_card.is_color_hinted:
-                return Hint(self.sender, selected_player[0], playable_card.value)
+        if checked_card is not None:
+            if checked_card.is_color_hinted:
+                return Hint(self.sender, selected_player[0], checked_card.value)
             else:
-                return Hint(self.sender, selected_player[0], playable_card.color)
-        elif useful_card is not None:
-            if useful_card.is_color_hinted:
-                return Hint(self.sender, selected_player[0], useful_card.value)
-            else:
-                return Hint(self.sender, selected_player[0], useful_card.color)
+                return Hint(self.sender, selected_player[0], checked_card.color)
         else:
             return None
-
 
 
 class HintMostInformation(HintRule):
@@ -539,7 +550,8 @@ class HintCritical(HintRule):
             return None
 
         players = self.hintable_players()
-        critical_cards = self.state.get_critical_cards()
+        critical_cards = {card for card in self.state.get_critical_cards() if not card.is_value_hinted}
+
         selected_player = None
         selected_card = None
         for player in players:
@@ -552,8 +564,6 @@ class HintCritical(HintRule):
 
         if selected_player is None:
             return None
-
-
 
         return Hint(self.sender, selected_player[0], selected_card.value)
 

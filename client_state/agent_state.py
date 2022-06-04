@@ -384,8 +384,10 @@ class AgentState:
 
         elif type(card) is ObservableCard:
             # ObsevableCard è useful se è quella subito dopo la playable
-
-            if (card.value.value + 1) == playable_cards[card.color].value:
+            playable_card_of_color = playable_cards.get(card.color)
+            if playable_card_of_color is None or playable_card_of_color == Value.FIVE:
+                max_probability = 0
+            elif card.value.value == playable_card_of_color.value + 1:
                 max_probability = 1
             else:
                 max_probability = 0

@@ -25,9 +25,11 @@ class RuleManager:
             14: HintMostInformation(state, next_player=self.NEXT_PLAYER),
             15: HintRandom(state, self.NEXT_PLAYER),
             16: HintUsefulCard(state, self.NEXT_PLAYER),
-            17: HintFullKnowledge(state, self.NEXT_PLAYER),
-            18: HintCritical(state, next_player=self.NEXT_PLAYER),
-            19: HintUnknown(state, next_player=self.NEXT_PLAYER)
+            17: HintFullKnowledge(state, "playable", self.NEXT_PLAYER),
+            18: HintFullKnowledge(state, "useless", self.NEXT_PLAYER),
+            19: HintFullKnowledge(state, "useful", self.NEXT_PLAYER),
+            20: HintCritical(state, next_player=self.NEXT_PLAYER),
+            21: HintUnknown(state, next_player=self.NEXT_PLAYER)
 
         }
 
@@ -125,67 +127,72 @@ class RuleManager:
         # Se hai usato al massimo 6 blue tokens
         if self.state.used_blue_token < 7:
 
-            # Diamo hint sulle carte per renderle playable
+            # HintFullKnowledgePlayable (se gli è già stato dato un hint, completalo)
+            ruleset.append(self.rules_dict[17])
+
+            # HintFullKnowledgeUseless
+            ruleset.append(self.rules_dict[18])
+
+            # HintPlayable
+            ruleset.append(self.rules_dict[13])
+
+            #HintFullKnowledgeUseful
+            ruleset.append(self.rules_dict[19])
+
+            # HintUseful
+            ruleset.append(self.rules_dict[16])
+
+            # HintMostInfo
+            ruleset.append(self.rules_dict[14])
+
+        elif self.state.used_blue_token == 7:
+
+            #L'ultimo hint che gli do è che almeno non scarti una carta critica
+
+            #HintCritical
+            ruleset.append(self.rules_dict[20])
+
+        #PlayJustHintedIfSingle
+        ruleset.append(self.rules_dict[5])
+
+        #PlayUseful
+        self.USEFULNESS_THRESHOLD = 0.6
+        ruleset.append(self.rules_dict[2])
+
+        #DiscardDispensable
+        ruleset.append(self.rules_dict[8])
+
+        #DiscardOldestUnhinted
+        ruleset.append(self.rules_dict[10])
+
+        if self.state.used_red_token == 0:
+
+            #Rischio di giocare una carta con una threshold più bassa
+            #I cinque non arriveranno mai alla threshold 0.6,
+            # al masssimo arriveranno a 0.5
+
+            self.USEFULNESS_THRESHOLD = 0.3
+
+            ruleset.append(self.rules_dict[2])
+
+            #Altrimenti posso dare un ultimo indizio
 
             # HintFullKnowledgePlayable (se gli è già stato dato un hint, completalo)
             ruleset.append(self.rules_dict[17])
 
             # HintFullKnowledgeUseless
+            ruleset.append(self.rules_dict[18])
 
-            #useful solo quelle solo quelle dopo playable
-
-            #HintCritical
-            if len(self.state.get_critical_cards()) > 0:
-                ruleset.append(self.rules_dict[18])
-
-            # HintPlayable
-            ruleset.append(self.rules_dict[13])
-
-            # HintUseful
-            ruleset.append(self.rules_dict[16])
+            #HintFullKnowledgeUseful
+            ruleset.append(self.rules_dict[19])
 
             # HintMostInfo
             ruleset.append(self.rules_dict[14])
-
-        else:
-            #Proviamo a giocare o a scartare una carta
-
-            #PlayJustHintedIfSingle
-            ruleset.append(self.rules_dict[5])
-
-            #PlayUseful
-            self.USEFULNESS_THRESHOLD = 0.6
-            ruleset.append(self.rules_dict[2])
-
-
-
-            #DiscardDispensable
-            ruleset.append(self.rules_dict[8])
 
             #DiscardOldestUnhinted
             ruleset.append(self.rules_dict[10])
 
-            if self.state.used_red_token == 0:
 
-                #Rischio di giocare una carta con una threshold più bassa
-                #I cinque non arriveranno mai alla threshold 0.6,
-                # al masssimo arriveranno a 0.5
-
-                self.USEFULNESS_THRESHOLD = 0.3
-
-                ruleset.append(self.rules_dict[2])
-
-            #Altrimenti posso dare un ultimo indizio
-
-            # HintFullKnowledge (se gli è già stato dato un hint)
-            ruleset.append(self.rules_dict[17])
-
-            # HintPlayable
-            ruleset.append(self.rules_dict[13])
-            # HintUseful
-            ruleset.append(self.rules_dict[16])
-            # HintMostInfo
-            ruleset.append(self.rules_dict[14])
 
         return ruleset
 
