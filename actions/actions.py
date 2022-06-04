@@ -120,3 +120,5 @@ class DiscardCardResult(DiscardCard):
 
     def __str__(self):
         return f"{self.source_player} discarded the card {self.discarded_card}"
+    def __str__(self):
+        return f"{self.source_player} discarded the card {self.discarded_card}"

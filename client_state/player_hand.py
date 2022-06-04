@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List, Set
 
 from client_state.card_info import Value, Color, DECK_VALUE_STRUCTURE
@@ -19,9 +20,9 @@ class Hand:
     def check_hand_consistency(self, player: Player):
         for idx, card in enumerate(player.hand):
             old_card = self.hand[idx]
-            # assert old_card.color.value == card.color and old_card.value.value == card.value
-            if not (old_card.color.value == card.color and old_card.value.value == card.value):
-                print("hand inconsistency")
+            assert old_card.color.value == card.color and old_card.value.value == card.value
+            # if not (old_card.color.value == card.color and old_card.value.value == card.value):
+            #     print("hand inconsistency")
 
     def hint_cards(self, hint: Value or Color, positions: List[int]):
         for pos in positions:

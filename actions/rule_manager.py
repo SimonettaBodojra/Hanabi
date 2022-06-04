@@ -4,7 +4,7 @@ from actions.rules import *
 class RuleManager:
     USEFULNESS_THRESHOLD = 0.6
     DISPENSABLE_THRESHOLD = 0.2
-    NEXT_PLAYER = True
+    NEXT_PLAYER = False
 
     def __init__(self, state):
         self.state = state
@@ -29,7 +29,9 @@ class RuleManager:
             18: HintFullKnowledge(state, "useless", self.NEXT_PLAYER),
             19: HintFullKnowledge(state, "useful", self.NEXT_PLAYER),
             20: HintCritical(state, next_player=self.NEXT_PLAYER),
-            21: HintUnknown(state, next_player=self.NEXT_PLAYER)
+            21: HintUnknown(state, next_player=self.NEXT_PLAYER),
+            22: PlayUsefulCard(state, usefulness_threshold=.5),
+            23: DiscardDispensableCard(state, dispensable_threshold=.3)
 
         }
 
@@ -118,14 +120,14 @@ class RuleManager:
         # Se si hanno delle certezze sulle carte le si gioca o le si scarta
 
         #PlaySafeCard, DiscardUseless
-        ruleset = [self.rules_dict[1], self.rules_dict[5]]
+        ruleset = [self.rules_dict[1], self.rules_dict[6]]
 
         # Quando si arriva a terminare gli hint in due,
         # se nessuno ha alcune carte playable in mano si tende a dare un hint appena possibile
         # e a scartare soltant
 
         # Se hai usato al massimo 6 blue tokens
-        if self.state.used_blue_token < 7:
+        if self.state.used_blue_token < 6:
 
             # HintFullKnowledgePlayable (se gli è già stato dato un hint, completalo)
             ruleset.append(self.rules_dict[17])
@@ -156,11 +158,10 @@ class RuleManager:
         ruleset.append(self.rules_dict[5])
 
         #PlayUseful
-        self.USEFULNESS_THRESHOLD = 0.6
         ruleset.append(self.rules_dict[2])
 
         #DiscardDispensable
-        ruleset.append(self.rules_dict[8])
+        ruleset.append(self.rules_dict[10])
 
         #DiscardOldestUnhinted
         ruleset.append(self.rules_dict[10])
@@ -171,9 +172,7 @@ class RuleManager:
             #I cinque non arriveranno mai alla threshold 0.6,
             # al masssimo arriveranno a 0.5
 
-            self.USEFULNESS_THRESHOLD = 0.3
-
-            ruleset.append(self.rules_dict[2])
+            ruleset.append(self.rules_dict[22])
 
             #Altrimenti posso dare un ultimo indizio
 

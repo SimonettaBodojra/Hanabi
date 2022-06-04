@@ -10,12 +10,12 @@ from typing import List
 
 class RuleBasedAgent(Client):
 
-    def __init__(self, player_name: str, game_number: int = 1):
+    def __init__(self, player_name: str, game_number: int = 1, agent_number: int = 1):
         self.mutex = Lock()
         self.state: None
         self.rule_set = None
         self.final_scores = []
-        super().__init__(player_name, game_number=game_number)
+        super().__init__(player_name, game_number=game_number, agent_number=agent_number)
 
     def _init_game_state(self, state: GameData.ServerGameStateData):
         self.state = AgentState(state, self.player_name)
@@ -69,14 +69,14 @@ class AgentDeployer:
 
 
 if __name__ == '__main__':
-    agent_number = 2
+    agent_number = 5
     agents_deployers = []
-    game_number = 5
+    game_number = 10
     scores: List[int] = []
 
     for a in range(agent_number):
         name = f"Agent{a}"
-        agent = RuleBasedAgent(name, game_number)
+        agent = RuleBasedAgent(name, game_number, agent_number)
         agents_deployers.append(AgentDeployer(agent))
 
     for deployer in agents_deployers:
@@ -96,4 +96,17 @@ if __name__ == '__main__':
         for deployer in agents_deployers:
             scores[game] = max(scores[game], deployer.agent.final_scores[game])
 
-    logging.info(f"GAME SCORES:\n{scores}")
+    logging.info(f"""
+
+    
+************** MATCH WITH {agent_number} players **************
+AGENTS:
+{[deployer.agent.player_name for deployer in agents_deployers]}
+
+GAME SCORES:
+{scores}
+
+AVG SCORE:
+{sum(scores) / len(scores)}
+    """)
+

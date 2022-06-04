@@ -1,3 +1,4 @@
+import threading
 from abc import ABC, abstractmethod
 import logging
 import socket
@@ -9,13 +10,21 @@ from actions.actions import Action, HintResult, PlayCardResult, DiscardCardResul
 from typing import Tuple
 from client_state.player_hand import HiddenCard, ObservableCard
 from game import Card
+from threading import Lock
 
 logging.basicConfig(
     format="[%(asctime)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
-    level=logging.INFO,
+    level=logging.DEBUG,
 )
 
+
+client_update_state = 0
+select_action = True
+lock = Lock()
+play_action_cv = threading.Condition(lock)
+restart_cv = threading.Condition()
+restarted_client = 0
 
 class ClientState(Enum):
     NOT_CONNECTED = "NOT CONNECTED"
@@ -31,7 +40,7 @@ class ClientState(Enum):
 class Client(ABC):
     """Classe base per interagire col server"""
 
-    def __init__(self, player_name: str, host: str = HOST, port: int = PORT, game_number: int = 1):
+    def __init__(self, player_name: str, host: str = HOST, port: int = PORT, game_number: int = 1, agent_number: int = 1):
         self.player_name = player_name
         self.starting_hand_size = None
         self.host = host
@@ -41,6 +50,7 @@ class Client(ABC):
         self.current_player = None
         self.game_number = game_number
         self.current_game = 0
+        self.player_number = agent_number
         self.__connect_to_server()
 
     def __read_response(self) -> GameData.ServerToClientData:
@@ -108,6 +118,8 @@ class Client(ABC):
                 logging.info(msg=f"{self.player_name} - Game started")
 
     def restart(self):
+        global restarted_client, restart_cv, client_update_state, select_action
+
         if self.client_state != ClientState.GAME_OVER:
             raise RuntimeError("Match is not over yet")
 
@@ -116,11 +128,21 @@ class Client(ABC):
         state = self.get_game_status()
         self._init_game_state(state)
 
+        restart_cv.acquire()
         logging.info(msg=f"{self.player_name} - Game started")
+        restarted_client = (restarted_client + 1) % self.player_number
+        if restarted_client == 0:
+            client_update_state = 0
+            select_action = True
+            restart_cv.notifyAll()
+        else:
+            restart_cv.wait_for(lambda: restarted_client == 0)
 
+        restart_cv.release()
         self.run()
 
     def run(self):
+        global play_action_cv, client_update_state, select_action
         if self.client_state != ClientState.PLAYING:
             return
 
@@ -128,17 +150,33 @@ class Client(ABC):
             # Se è il mio turno allora trovo la best action e la gioco
             logging.info(f"TURN: {self.current_player}")
             if self.current_player == self.player_name:
+
+                play_action_cv.acquire()
+                play_action_cv.wait_for(lambda: select_action is True)
+                select_action = False
+
                 action = self.get_next_action()
                 action_result, new_state = self.__play_action(action)
                 logging.info(f"{self.player_name}: {action_result}")
 
+                play_action_cv.release()
             else:
                 logging.info(f"WAITING OTHER PLAYERS ACTION")
                 action_result, new_state = self.fetch_action_result()
                 logging.info(f"{self.player_name}: {action_result}")
 
-            if action_result is not None:  # se è None allora è game-over
+            if action_result is not None:
+                # se è None allora è game-over
+                play_action_cv.acquire()
+
                 self.update_state_with_action(action_result, new_state)
+                client_update_state = (client_update_state + 1) % self.player_number
+
+                if client_update_state == 0:
+                    select_action = True
+                    play_action_cv.notify()
+
+                play_action_cv.release()
 
             elif self.client_state == ClientState.GAME_OVER and self.current_game + 1 < self.game_number:
                 self.current_game += 1
