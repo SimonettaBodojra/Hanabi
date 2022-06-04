@@ -83,9 +83,10 @@ class AgentState:
             self.hand[i].exclude(hint)
 
     def on_new_card(self, used_card_index: int, card_drawn: HiddenCard):
-        assert type(card_drawn) is HiddenCard
         del self.hand[used_card_index]
-        self.hand.append(card_drawn)
+        if card_drawn is not None:
+            assert type(card_drawn) is HiddenCard
+            self.hand.append(card_drawn)
 
 
     def get_observable_cards(self) -> Dict[ObservableCard, int]:
@@ -107,8 +108,7 @@ class AgentState:
             observable_cards[card] = previous_card_count + count
 
         for card, count in observable_cards.items():
-            if count > DECK_SINGLE_FIREWORK_STRUCTURE[card.value]:
-                print("ERROR")
+            assert count <= DECK_SINGLE_FIREWORK_STRUCTURE[card.value]
 
         return observable_cards
 
@@ -164,10 +164,10 @@ class AgentState:
             if player.name != self.agent_name:
                 self.player_hands[turn].check_hand_consistency(player)
 
-        observable_card_number = sum(self.get_observable_cards().values())
+        # observable_card_number = sum(self.get_observable_cards().values())
 
-        if observable_card_number + self.hand_card_number > DECK_SIZE:
-            del self.hand[-1]
+        # if observable_card_number + self.hand_card_number > DECK_SIZE:
+        #     del self.hand[-1]
 
         self.is_state_updated = True
 
@@ -215,8 +215,8 @@ class AgentState:
                     total_cards = DECK_COLOR_STRUCTURE[
                                       card.hint_color] - excluded_card_number - observable_card_not_excluded_number
 
-                    if total_cards == 0:
-                        print('ciao')
+                    assert total_cards != 0
+
                     card.possible_values[value] = possible_cards / total_cards
 
         # se ho solo l'hint sul value calcolo le probabilità dei colors considerando solo le carte di quel value
@@ -237,6 +237,9 @@ class AgentState:
                         color]
                     total_cards = DECK_VALUE_STRUCTURE[
                                       card.hint_value] - excluded_card_number - observable_card_not_excluded_number
+
+                    assert total_cards != 0
+
                     card.possible_colors[color] = possible_cards / total_cards
 
         # non ho nessun hint, calcolo le probabilità considerando solo i not excluded values e colors
@@ -271,6 +274,7 @@ class AgentState:
                     not_excluded_colors_dict[obs_card.color] += count
 
             total_cards = DECK_SIZE - excluded_cards - not_excluded_observable_cards
+            assert total_cards != 0
 
             for color in not_excluded_colors:
                 possible_cards = DECK_COLOR_STRUCTURE[color] - count_excluded - not_excluded_colors_dict[color]
@@ -282,108 +286,6 @@ class AgentState:
 
         assert abs(sum(card.possible_values.values()) - 1) < 0.001
         assert abs(sum(card.possible_colors.values()) - 1) < 0.001
-
-    @staticmethod
-    def __update_card_current_belief(card: HiddenCard,
-                                     remaining_hidden_cards,
-                                     all_observable_cards,
-                                     played_color_cards,
-                                     played_value_cards,
-                                     hinted_color_count,
-                                     hinted_value_count):
-
-        total_hinted_color = sum(hinted_color_count.values())
-        total_hinted_value = sum(hinted_value_count.values())
-
-        if card.hint_color is None:
-            if card.hint_value is not None:
-
-                excluded_card_number = DECK_VALUE_STRUCTURE[card.hint_value] * len(card.excluded_colors)
-                not_excluded_colors = Color.getColors().difference(card.excluded_colors)
-                single_value_possible_color = {
-                    color: all_observable_cards.get(ObservableCard(card.hint_value.value, color), 0) for color in
-                    not_excluded_colors}
-                observable_card_not_excluded_number = sum(single_value_possible_color.values())
-
-                for color in card.possible_colors:
-                    # Se il colore rientra nei colori esclusi metto la probabilità a 0
-                    if color in card.excluded_colors:
-                        card.possible_colors[color] = 0
-                    else:
-                        possible_cards = DECK_SINGLE_FIREWORK_STRUCTURE[card.hint_value] - single_value_possible_color[
-                            color]
-                        total_cards = DECK_VALUE_STRUCTURE[
-                                          card.hint_value] - excluded_card_number - observable_card_not_excluded_number
-                        card.possible_colors[color] = possible_cards / total_cards
-
-            else:
-                for color in card.possible_colors:
-                    # Se il colore rientra nei colori esclusi metto la probabilità a 0
-                    if color in card.excluded_colors:
-                        card.possible_colors[color] = 0
-                    else:
-                        # calcolo quante carte per ogni colore escluso non sono ancora state giocate
-                        remaining_excluded_cards_list = [
-                            DECK_COLOR_STRUCTURE[excluded_color] - played_color_cards[excluded_color]
-                            for excluded_color in card.excluded_colors]
-
-                        remaining_excluded_cards = sum(remaining_excluded_cards_list)
-                        possible_cards = DECK_COLOR_STRUCTURE[color] - played_color_cards[color]
-                        # e li sottraggo dal totale delle possibili carte -> casi possibili solo color non esclusi
-                        total_cards = remaining_hidden_cards - remaining_excluded_cards
-
-                        # se la carta è stata appena pescata, escludo dalle possibilità le carte che so già di avere in mano
-                        if card.is_new:
-                            possible_cards -= hinted_color_count[color]
-                            total_cards -= total_hinted_color
-
-                        card.possible_colors[color] = possible_cards / total_cards
-
-            assert abs(sum(card.possible_colors.values()) - 1.0) < 0.001
-
-        if card.hint_value is None:
-            if card.hint_color is not None:
-
-                excluded_card_number = sum(
-                    [DECK_SINGLE_FIREWORK_STRUCTURE[excluded_value] for excluded_value in card.excluded_values])
-                not_excluded_values = Value.getValues().difference(card.excluded_values)
-                observable_card_not_excluded = {not_excluded_value: all_observable_cards.get(
-                    ObservableCard(not_excluded_value.value, card.hint_color.value), 0)
-                                                for not_excluded_value in not_excluded_values}
-
-                observable_card_not_excluded_number = sum(observable_card_not_excluded.values())
-
-                for value in card.possible_values:
-                    if value in card.excluded_values:
-                        card.possible_values[value] = 0
-                    else:
-                        possible_cards = DECK_SINGLE_FIREWORK_STRUCTURE[value] - observable_card_not_excluded[value]
-                        total_cards = DECK_COLOR_STRUCTURE[
-                                          card.hint_color] - excluded_card_number - observable_card_not_excluded_number
-                        card.possible_values[value] = possible_cards / total_cards
-
-            else:
-                for value in card.possible_values:
-                    if value in card.excluded_values:
-                        card.possible_values[value] = 0
-                    else:
-                        # calcolo quante carte dei valori esclusi non sono ancora state giocate
-                        remaining_excluded_cards_list = [
-                            DECK_VALUE_STRUCTURE[excluded_value] - played_value_cards[excluded_value]
-                            for excluded_value in card.excluded_values]
-
-                        remaining_excluded_cards = sum(remaining_excluded_cards_list)
-                        possible_cards = DECK_VALUE_STRUCTURE[value] - played_value_cards[value]
-                        # e li sottraggo dal totale delle possibili carte -> casi possibili solo color non esclusi
-                        total_cards = remaining_hidden_cards - remaining_excluded_cards
-                        if card.is_new:
-                            possible_cards -= hinted_value_count[value]
-                            total_cards -= total_hinted_value
-                        card.possible_values[value] = possible_cards / total_cards
-
-            assert abs(sum(card.possible_values.values()) - 1.0) < 0.001
-
-        card.is_new = False
 
     def update_current_belief(self):
 
@@ -408,8 +310,14 @@ class AgentState:
     def is_card_playable(self, card) -> bool:
 
         if type(card) is HiddenCard:
-            # Se non abbiamo l'informazione certa sulla carta allora non può essere playable
-            if not card.hasColorHint() or not card.hasValueHint():
+
+            # Una carta è playable in due casi:
+            # Ha un valore che può essere messo su qualsiasi firework
+            firework_values = list(self.fireworks.values())
+            if len(set(firework_values)) == 1 and card.hasValueHint():
+                return (card.hint_value.value - 1) == firework_values[0]
+
+            elif not card.hasColorHint() or not card.hasValueHint():
                 return False
 
             card_color = card.hint_color
@@ -434,12 +342,24 @@ class AgentState:
 
         if type(card) is HiddenCard:
 
-            # Se non abbiamo l'informazione certa sulla carta allora non può essere playable
-            if card.hint_color is None or card.hint_value is None:
-                return False
+            # troviamo la carta minima giocabile: tutte le carte sotto quel valore sono useless
+            min_firework_value = min(self.fireworks.values())
+            if card.hasValueHint() and card.hint_value.value <= min_firework_value:
+                return True
 
-            card_color = card.hint_color
-            card_value = card.hint_value.value  # ritorna il valore associato all' enum Value
+            if card.hasColorHint():
+                current_firework_value = self.fireworks[card.hint_color]
+                if current_firework_value == 5:
+                    return True
+                discarded_count = self.discard_pile.get(ObservableCard(current_firework_value+1, card.hint_color.value), 0)
+                if discarded_count == DECK_SINGLE_FIREWORK_STRUCTURE[Value(current_firework_value+1)]:
+                    return True
+
+            if card.hasColorHint() and card.hasValueHint():
+                card_color = card.hint_color
+                card_value = card.hint_value.value  # ritorna il valore associato all' enum Value
+            else:
+                return False
 
         elif type(card) is ObservableCard:
             card_color = card.color
@@ -450,31 +370,58 @@ class AgentState:
 
         return card_value <= self.fireworks[card_color]  # ritorna il valore associato all' enum Value
 
-    def get_usefulness_probability(self, card: HiddenCard) -> float:
+    def get_usefulness_probability(self, card: HiddenCard or ObservableCard) -> float:
+
         playable_cards = self.get_playable_cards()
 
-        probability_list = []
-        for color, value in playable_cards.items():
-            probability_list.append(card.possible_colors[color] * card.possible_values[value])
+        if type(card) is HiddenCard:
+            # HiddenCard è useful se ha una probabilità alta di essere una determinata combinazione colore/valore
+            probability_list = []
+            for color, value in playable_cards.items():
+                probability_list.append(card.possible_colors[color] * card.possible_values[value])
 
-        max_probability = max(probability_list)
+            max_probability = max(probability_list)
+
+        elif type(card) is ObservableCard:
+            # ObsevableCard è useful se è quella subito dopo la playable
+
+            if (card.value.value + 1) == playable_cards[card.color].value:
+                max_probability = 1
+            else:
+                max_probability = 0
+
+        else:
+            raise Exception("Unknown card type")
+
         return max_probability
 
-    def get_dispensable_probability(self, card: HiddenCard) -> float:
+    def get_dispensable_probability(self, card: HiddenCard or ObservableCard) -> float:
+        critical_cards = self.get_critical_cards()
 
-        probability_list = []
-        for color, count in self.fireworks:
-            total_card_probability = 0
-            for stack_value in range(1, count + 1):
-                total_card_probability += card.possible_colors[color] * card.possible_values[Value(stack_value)]
-            probability_list.append(total_card_probability)
+        if type(card) is HiddenCard:
 
-        max_probability = max(probability_list)
+            #HiddenCard sacrificabile se ha una bassa probabilità di essere critica
+            probability_list = []
+            for critical_card in critical_cards:
+                probability_list.append(card.possible_colors[critical_card.color] * card.possible_values[critical_card.value])
 
-        return max_probability
+            max_probability = max(probability_list)
+
+        elif type(card) is ObservableCard:
+
+            #ObservableCard sacrificabile se non è critica
+            if card in critical_cards:
+                max_probability = 0
+            else:
+                max_probability = 1
+
+        else:
+            raise Exception("Unknown card type")
+
+        return 1-max_probability
 
     def check_card_usability(self, card: HiddenCard, check: str, useful_threshold: float = .7,
-                             dispensable_threshold: float = .7) -> bool:
+                             dispensable_threshold: float = .2) -> bool:
 
         if check == "playable":
             return self.is_card_playable(card)
@@ -491,7 +438,7 @@ class AgentState:
         firework_structure = DECK_SINGLE_FIREWORK_STRUCTURE
         critical_cards = set()
 
-        for color, count in self.fireworks:
+        for color, count in self.fireworks.items():
             # partendo da count+1 sto già filtrando le carte non critiche per definizione
             for value in range(count + 1, Value.FIVE.value + 1):
                 value = Value(value)

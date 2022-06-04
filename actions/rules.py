@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Tuple, List, Dict
+from typing import List, Dict
 
 from client_state.agent_state import AgentState
 from client_state.card_info import Color, Value
 from actions.actions import Action, Hint, PlayCard, DiscardCard
 import random
 import logging
+
 
 class Rule(ABC):
 
@@ -58,6 +59,7 @@ class PlayUsefulCard(Rule):
         self.usefulness_threshold = usefulness_threshold
 
     def rule_to_action(self) -> Action:
+
         if self.state.used_red_token > 1:
             return None
 
@@ -80,6 +82,7 @@ class PlayJustHinted(Rule):
         self.usefulness_threshold = usefulness_threshold
 
     def rule_to_action(self) -> Action:
+
         if self.state.used_red_token > 1:
             return None
 
@@ -101,15 +104,22 @@ class PlayJustHinted(Rule):
 
         return PlayCard(self.sender, useful_card_index)
 
-class PlayUsefulValueCard(Rule):
 
+# non è utile quando si utilizzano le HintRules con next_player a False
+class PlayJustHintedIfSingle(Rule):
     def __init__(self, state: AgentState):
         super().__init__(state)
 
     def rule_to_action(self) -> Action:
-        if self.state.used_red_token != 0:
+        if self.state.used_red_token > 1:
             return None
 
+        just_hinted = list(self.state.just_hinted)
+
+        if len(just_hinted) != 1:
+            return None
+
+        return PlayCard(self.sender, just_hinted[0])
 
 
 # ------ DISCARD RULES (6) ------
@@ -119,6 +129,9 @@ class DiscardUselessCard(Rule):
         super().__init__(state)
 
     def rule_to_action(self) -> Action:
+        if self.state.used_blue_token == 0:
+            return None
+
         # List of the playable cards indexes
         useless_cards_indexes = [idx for idx, hidden_card in enumerate(self.state.hand)
                                  if self.state.check_card_usability(hidden_card, "useless")]
@@ -136,7 +149,12 @@ class DiscardRandomCard(Rule):
         super().__init__(state)
 
     def rule_to_action(self) -> Action:
+
+        if self.state.used_blue_token == 0:
+            return None
+
         random_index = random.choice(range(self.state.hand_card_number))
+
         return DiscardCard(self.sender, random_index)
 
 
@@ -147,6 +165,9 @@ class DiscardDispensableCard(Rule):
         self.dispensable_threshold = dispensable_threshold
 
     def rule_to_action(self) -> Action:
+        if self.state.used_blue_token == 0:
+            return None
+
         dispensable_cards_indexes = [idx for idx, hidden_card in enumerate(self.state.hand)
                                      if self.state.check_card_usability(hidden_card, "dispensable",
                                                                         dispensable_threshold=self.dispensable_threshold)]
@@ -165,6 +186,9 @@ class DiscardJustHinted(Rule):
         self.dispensable_threshold = dispensable_threshold
 
     def rule_to_action(self) -> Action:
+        if self.state.used_blue_token == 0:
+            return None
+
         max_prob = .0
         dispensable_card_index = 0
         for card_index in self.state.just_hinted:
@@ -185,12 +209,25 @@ class DiscardOldestUnhintedCard(Rule):
         super().__init__(state)
 
     def rule_to_action(self) -> Action:
+        if self.state.used_blue_token == 0:
+            return None
 
         for count, hidden_card in enumerate(self.state.hand):
             if hidden_card.hint_color is None and hidden_card.hint_color is None:
                 break
 
         return DiscardCard(self.sender, count)
+
+
+class DiscardOldest(Rule):
+
+    def __init__(self, state: AgentState):
+        super().__init__(state)
+
+    def rule_to_action(self) -> Action:
+        if self.state.used_blue_token == 0:
+            return None
+        return DiscardCard(self.sender, 0)
 
 
 # ------ HINT RULES (6) ------
@@ -223,8 +260,8 @@ class HintRule(Rule):
                 hintable_players = [(self.state.my_turn + i) % len(self.state.players_list) for i in
                                     range(1, available_blue_tokens + 1)]
 
-            hintable_players_info = [(self.state.players_list[player].name, self.state.players_list[player].hand) for
-                                     player in hintable_players]
+            hintable_players_info = [(self.state.player_hands[turn].player_name, self.state.player_hands[turn].hand) for
+                                     turn in hintable_players]
 
             return hintable_players_info
 
@@ -250,46 +287,31 @@ class HintRule(Rule):
     def get_hint(self, check: str, players: List, useful_threshold: float = .7, dispensable_threshold: float = .7):
         card_indexes = []
 
+        selected_player = None
         for player in players:
             card_indexes = [idx for idx, card in enumerate(player[1])
                             if self.state.check_card_usability(card, check,
                                                                useful_threshold=useful_threshold,
-                                                               dispensable_threshold=dispensable_threshold)]
+                                                               dispensable_threshold=dispensable_threshold)
+                            and card.is_hintable()]
+
             if len(card_indexes) > 0:
+                selected_player = player
                 break
 
-        if len(card_indexes) == 0:
+        if selected_player is None:
             return None, None
 
         rand_index = random.choice(card_indexes)
-        random_card = player[1][rand_index]
+        random_card = selected_player[1][rand_index]
 
         if random_card.is_color_hinted:
-            return player, random_card.value
+            return selected_player, random_card.value
         elif random_card.is_value_hinted:
-            return player, random_card.color
+            return selected_player, random_card.color
         else:
             hints = [random_card.value, random_card.color]
-            return player, random.choice(hints)
-
-    # @staticmethod
-    # def set_hint_flag(hint: Value or Color, player: Tuple):
-    #
-    #     if type(hint) is Color:
-    #         for card_index in range(len(player[1])):
-    #             card = player[1][card_index]
-    #             if card.color == hint:
-    #                 player[1][card_index].is_color_hinted = True
-    #
-    #     elif type(hint) is Value:
-    #         for card_index in range(len(player[1])):
-    #             card = player[1][card_index]
-    #             if card.value == hint:
-    #                 player[1][card_index].is_value_hinted = True
-    #
-    #     else:
-    #         raise Exception("Unknown hint type")
-
+            return selected_player, random.choice(hints)
 
 class HintRandom(HintRule):
 
@@ -315,6 +337,8 @@ class HintRandom(HintRule):
 
 class HintPlayableCard(HintRule):
 
+    #ObservableCard è playable se può essere messa su un firework
+
     def __init__(self, state: AgentState, next_player: bool = True):
         super().__init__(state, next_player)
 
@@ -323,17 +347,58 @@ class HintPlayableCard(HintRule):
         if self.state.used_blue_token == 8:
             return None
 
-        player, hint = self.get_hint(check="playable", players=self.hintable_players())
+        card_indexes = []
 
-        if hint is None:
+        selected_player = None
+        for player in self.hintable_players():
+            card_indexes = [idx for idx, card in enumerate(player[1])
+                            if self.state.check_card_usability(card, "playable")
+                            and card.is_hintable()]
+
+            if len(card_indexes) > 0:
+                selected_player = player
+                break
+
+        if selected_player is None:
             return None
 
-        # self.set_hint_flag(hint, player)
+        count_per_color: Dict[Color, int] = {color: 0 for color in Color.getColors()}
+        count_per_value: Dict[Value, int] = {value: 0 for value in Value.getValues()}
 
-        return Hint(self.sender, player[0], hint)
+        for idx in card_indexes:
+            card = selected_player[1][idx]
+            if not card.is_color_hinted:
+                count_per_color[card.color] += 1
+            if not card.is_value_hinted:
+                count_per_value[card.value] += 1
+
+        for idx in card_indexes:
+            card = selected_player[1][idx]
+            # si da precedenza a dare l'informazione puntuale che rende la carta playable
+            if count_per_value[card.value] == 1 and not card.is_value_hinted:
+                return Hint(self.sender, selected_player[0], card.value)
+            if count_per_color[card.color] == 1 and not card.is_color_hinted:
+                return Hint(self.sender, selected_player[0], card.color)
+
+        max_hint = max(list(count_per_color.items()) + list(count_per_value.items()), key=lambda x: x[1])[0]
+        hint = max_hint
+        hint_type = type(hint)
+
+        for idx in card_indexes:
+            card = selected_player[1][idx]
+            if hint_type is Value and card.value == hint and not card.is_value_hinted:
+                return Hint(self.sender, selected_player[0], hint)
+            elif hint_type is Color and card.color == hint and not card.is_color_hinted:
+                return Hint(self.sender, selected_player[0], hint)
+
+        raise RuntimeError("IMPOSSIBLE TO BE HERE")
 
 
 class HintUsefulCard(HintRule):
+
+    #ObservableCard è useful se in futuro potrà essere messa su un firework
+    #Sostanzialmente se non è una carta già posta sullo stack
+
     def __init__(self, state: AgentState, next_player: bool = True, usefulness_threshold: float = .7):
         super().__init__(state, next_player)
 
@@ -355,6 +420,10 @@ class HintUsefulCard(HintRule):
 
 
 class HintFullKnowledge(HintRule):
+
+#Observable card che ha solamente uno dei due hint,
+#Dandogli un hint la renderebbe playable or useful
+
     def __init__(self, state: AgentState, next_player: bool = True):
         super().__init__(state, next_player)
 
@@ -364,11 +433,16 @@ class HintFullKnowledge(HintRule):
 
         players = self.hintable_players()
         hintable_card_indexes = []
+
         selected_player = None
+
+        #Tra tutti i giocatori hintabili seleziono il primo che ha carte con un hint
         for player in players:
             hintable_card_indexes = [idx for idx, card in enumerate(player[1])
                                      if (card.is_value_hinted and not card.is_color_hinted) or
-                                     (card.is_color_hinted and not card.is_value_hinted)]
+                                     (card.is_color_hinted and not card.is_value_hinted)
+                                     if self.state.is_card_playable(card) or
+                                     self.state.check_card_usability(card, "useful")]
 
             if len(hintable_card_indexes) > 0:
                 selected_player = player
@@ -377,17 +451,34 @@ class HintFullKnowledge(HintRule):
         if selected_player is None:
             return None
 
-        rand_hint = random.choice(hintable_card_indexes)
-        rand_card = selected_player[1][rand_hint]
+        #Trovato il giocatore che ha delle carte con almeno uno dei due hint
+        #che siano o playable o useful, si seleziona con priorità prima la playable
 
-        if rand_card.is_color_hinted:
-            hint = rand_card.value
+        useful_card = None
+        playable_card = None
+
+        for idx in hintable_card_indexes:
+            hintable_card = selected_player[1][idx]
+            if self.state.check_card_usability(hintable_card, "playable"):
+                playable_card = hintable_card
+                break
+            elif self.state.check_card_usability(hintable_card, "useful"):
+                useful_card = hintable_card
+                break
+
+        if playable_card is not None:
+            if playable_card.is_color_hinted:
+                return Hint(self.sender, selected_player[0], playable_card.value)
+            else:
+                return Hint(self.sender, selected_player[0], playable_card.color)
+        elif useful_card is not None:
+            if useful_card.is_color_hinted:
+                return Hint(self.sender, selected_player[0], useful_card.value)
+            else:
+                return Hint(self.sender, selected_player[0], useful_card.color)
         else:
-            hint = rand_card.color
+            return None
 
-        # self.set_hint_flag(hint, selected_player)
-
-        return Hint(self.sender, selected_player[0], hint)
 
 
 class HintMostInformation(HintRule):
@@ -435,14 +526,6 @@ class HintMostInformation(HintRule):
         else:
             max_player = random.choice([max_color_player, max_value_player])
 
-        # player_hand = None
-        # for player in players:
-        #     if player[0] == max_player[0]:
-        #         player_hand = player[1]
-        #         break
-
-        # self.set_hint_flag(max_player[1][0], player_hand)
-
         return Hint(self.sender, max_player[0], max_player[1][0])
 
 
@@ -462,7 +545,7 @@ class HintCritical(HintRule):
         for player in players:
             player_cards = set(player[1])
             intersection = critical_cards.intersection(player_cards)
-            if len(intersection) == 0:
+            if len(intersection) != 0:
                 selected_player = player
                 selected_card = random.choice(list(intersection))
                 break
@@ -470,17 +553,9 @@ class HintCritical(HintRule):
         if selected_player is None:
             return None
 
-        if selected_card.is_color_hinted:
-            hint = selected_card.value
-        elif selected_card.is_value_hinted:
-            hint = selected_card.color
-        else:
-            hints = [selected_card.value, selected_card.color]
-            hint = random.choice(hints)
 
-        # self.set_hint_flag(hint, selected_player)
 
-        return Hint(self.sender, selected_player[0], hint)
+        return Hint(self.sender, selected_player[0], selected_card.value)
 
 
 class HintOnes(HintRule):
@@ -509,8 +584,6 @@ class HintOnes(HintRule):
 
         if selected_player is None:
             return None
-
-        # self.set_hint_flag(Value.ONE, selected_player)
 
         return Hint(self.sender, selected_player[0], Value.ONE)
 
@@ -542,7 +615,6 @@ class HintUnknown(HintRule):
         # self.set_hint_flag(hint, selected_player)
 
         return Hint(self.sender, selected_player[0], hint)
-
 
 if __name__ == '__main__':
     a = {"a": 1, "b": 2}

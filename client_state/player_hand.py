@@ -1,6 +1,7 @@
-from game import Player
 from typing import Dict, List, Set
+
 from client_state.card_info import Value, Color, DECK_VALUE_STRUCTURE
+from game import Player
 
 
 class Hand:
@@ -18,8 +19,9 @@ class Hand:
     def check_hand_consistency(self, player: Player):
         for idx, card in enumerate(player.hand):
             old_card = self.hand[idx]
+            # assert old_card.color.value == card.color and old_card.value.value == card.value
             if not (old_card.color.value == card.color and old_card.value.value == card.value):
-                print("err")
+                print("hand inconsistency")
 
     def hint_cards(self, hint: Value or Color, positions: List[int]):
         for pos in positions:
@@ -30,14 +32,11 @@ class Hand:
         if drawn_card is not None:
             assert type(drawn_card) is ObservableCard
             self.hand.append(drawn_card)
-        else:
-            print("ciao")
 
 
 class ObservableCard:
 
     def __init__(self, value: int, color: str, is_color_hinted: bool = False, is_value_hinted: bool = False):
-
         self.value = Value(value)
         self.color = Color(color)
         self.is_color_hinted = is_color_hinted
@@ -59,7 +58,7 @@ class ObservableCard:
         return self.color == other.color and self.value == other.value
 
     def is_hintable(self):
-        return not (self.is_color_hinted and self.is_color_hinted)
+        return not (self.is_color_hinted and self.is_value_hinted)
 
     def set_hint(self, hint: Color or Value):
         if type(hint) is Color:

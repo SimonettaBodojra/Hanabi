@@ -33,6 +33,7 @@ class Client(ABC):
 
     def __init__(self, player_name: str, host: str = HOST, port: int = PORT):
         self.player_name = player_name
+        self.starting_hand_size = None
         self.host = host
         self.port = port
         self.socket = None
@@ -116,12 +117,12 @@ class Client(ABC):
             if self.current_player == self.player_name:
                 action = self.get_next_action()
                 action_result, new_state = self.__play_action(action)
-                logging.info(action_result)
+                logging.info(f"{self.player_name}: {action_result}")
 
             else:
                 logging.info(f"WAITING OTHER PLAYERS ACTION")
                 action_result, new_state = self.fetch_action_result()
-                logging.info(action_result)
+                logging.info(f"{self.player_name}: {action_result}")
 
             if action_result is not None:  # se è None allora è game-over
                 self.update_state_with_action(action_result, new_state)
@@ -156,8 +157,8 @@ class Client(ABC):
         elif type(response) is GameData.ServerInvalidDataReceived:
             raise ValueError(f"InvalidData received: {response.data}")
         elif type(response) is GameData.ServerGameOver:
-            logging.info("The game is over.")
             self.client_state = ClientState.GAME_OVER
+            self.game_over(response.score)
             return None, None
 
         new_state = self.get_game_status()
@@ -210,22 +211,31 @@ class Client(ABC):
     def draw_card(
         self, sender: str, new_state: GameData.ServerGameStateData
     ) -> HiddenCard or ObservableCard:
+
+        hand_size = min([new_state.handSize] + [len(player.hand) for player in new_state.players if player.name != self.player_name])
+        new_state.handSize = hand_size
+
         """Trova la carta pescata dal giocatore in questione"""
         if sender == self.player_name:
-            return HiddenCard(is_new=True)
-        for p in new_state.players:
-            if p.name == sender:
-                # le carte pescate vengono sempre appese alla fine della lista
-                if new_state.handSize != len(p.hand):
-                    return None
+            if self.starting_hand_size == hand_size:
+                return HiddenCard(is_new=True)
+            else:
+                return None
+        else:
+            for p in new_state.players:
+                if p.name == sender:
+                    # le carte pescate vengono sempre appese alla fine della lista
+                    if hand_size != self.starting_hand_size:
+                        return None
 
-                card: Card = p.hand[-1]
-                return ObservableCard(card.value, card.color)
+                    card: Card = p.hand[-1]
+                    return ObservableCard(card.value, card.color)
         raise ValueError("Player not found")
 
     @abstractmethod
     def _init_game_state(self, state: GameData.ServerGameStateData):
         self.current_player = state.currentPlayer
+        self.starting_hand_size = state.handSize
 
     @abstractmethod
     def update_state_with_action(
@@ -241,3 +251,7 @@ class Client(ABC):
     def get_next_action(self) -> Action:
         """Sarà implementata dai singoli agenti che erediteranno da questa classe"""
         raise NotImplementedError
+
+    @abstractmethod
+    def game_over(self, score: int):
+        logging.info("Game Over!")

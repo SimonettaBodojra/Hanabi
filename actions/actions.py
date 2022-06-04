@@ -91,7 +91,7 @@ class PlayCardResult(PlayCard):
         super().__init__(server_play_card_result.lastPlayer, server_play_card_result.cardHandIndex)
 
     def __str__(self):
-        return f"{self.source_player} played the card {self.played_card}"
+        return f"{self.result} {self.source_player} played the card {self.played_card}"
 
 
 class DiscardCard(Action):
