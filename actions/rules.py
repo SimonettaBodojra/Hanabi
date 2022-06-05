@@ -3,6 +3,7 @@ from typing import List, Dict
 
 from client_state.agent_state import AgentState
 from client_state.card_info import Color, Value
+from client_state.player_hand import HiddenCard
 from actions.actions import Action, Hint, PlayCard, DiscardCard
 import random
 import logging
@@ -334,6 +335,7 @@ class HintRule(Rule):
             hints = [random_card.value, random_card.color]
             return selected_player, random.choice(hints)
 
+
 class HintRandom(HintRule):
 
     def __init__(self, state: AgentState, next_player: bool):
@@ -395,11 +397,17 @@ class HintPlayableCard(HintRule):
 
         for idx in card_indexes:
             card = selected_player[1][idx]
-            # si da precedenza a dare l'informazione puntuale che rende la carta playable
-            if count_per_value[card.value] == 1 and not card.is_value_hinted:
-                return Hint(self.sender, selected_player[0], card.value)
-            if count_per_color[card.color] == 1 and not card.is_color_hinted:
-                return Hint(self.sender, selected_player[0], card.color)
+            if not card.is_value_hinted:
+                hidden_card = HiddenCard()
+                hidden_card.set_hint(card.value)
+                if self.state.is_card_playable(hidden_card) or count_per_value[card.value] == 1:
+                    return Hint(self.sender, selected_player[0], card.value)
+
+            if not card.is_color_hinted:
+                hidden_card = HiddenCard()
+                hidden_card.set_hint(card.color)
+                if self.state.is_card_playable(hidden_card) or not count_per_color[card.color] == 1:
+                    return Hint(self.sender, selected_player[0], card.color)
 
         max_hint = max(list(count_per_color.items()) + list(count_per_value.items()), key=lambda x: x[1])[0]
         hint = max_hint
@@ -597,6 +605,7 @@ class HintOnes(HintRule):
 
         return Hint(self.sender, selected_player[0], Value.ONE)
 
+
 class HintUnknown(HintRule):
     def __init__(self, state: AgentState, next_player: bool = True):
         super().__init__(state, next_player)
@@ -607,9 +616,9 @@ class HintUnknown(HintRule):
 
         players = self.hintable_players()
         selected_player = None
-
+        unhinted_card_idxs = []
         for player in players:
-            unhinted_card_idxs = [card for card in player[1] if not card.is_color_hinted and not card.is_value_hinted]
+            unhinted_card_idxs = [idx for idx, card in enumerate(player[1]) if not card.is_color_hinted and not card.is_value_hinted]
             if len(unhinted_card_idxs) > 0:
                 selected_player = player
 
@@ -625,6 +634,7 @@ class HintUnknown(HintRule):
         # self.set_hint_flag(hint, selected_player)
 
         return Hint(self.sender, selected_player[0], hint)
+
 
 if __name__ == '__main__':
     a = {"a": 1, "b": 2}

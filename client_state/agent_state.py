@@ -88,7 +88,6 @@ class AgentState:
             assert type(card_drawn) is HiddenCard
             self.hand.append(card_drawn)
 
-
     def get_observable_cards(self) -> Dict[ObservableCard, int]:
         # {Colore,valore: count}
         observable_cards = dict()
@@ -106,6 +105,12 @@ class AgentState:
         for card, count in self.discard_pile.items():
             previous_card_count = observable_cards.get(card, 0)
             observable_cards[card] = previous_card_count + count
+
+        for hidden_card in self.hand:
+            if hidden_card.hasValueHint() and hidden_card.hasColorHint():
+                card = ObservableCard(hidden_card.hint_value.value, hidden_card.hint_color.value)
+                previous_card_count = observable_cards.get(card, 0)
+                observable_cards[card] = previous_card_count + 1
 
         for card, count in observable_cards.items():
             assert count <= DECK_SINGLE_FIREWORK_STRUCTURE[card.value]
@@ -406,6 +411,9 @@ class AgentState:
             probability_list = []
             for critical_card in critical_cards:
                 probability_list.append(card.possible_colors[critical_card.color] * card.possible_values[critical_card.value])
+
+            if len(probability_list) == 0:
+                return 1
 
             max_probability = max(probability_list)
 
