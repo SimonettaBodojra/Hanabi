@@ -36,7 +36,7 @@ class RuleBasedAgent(Client):
         if self.step_by_step:
             input("PRESS ENTER TO CONTINUE")
 
-        self.rule_set = RuleManager(self.state).five_players_strategy()
+        self.rule_set = RuleManager(self.state).most_info_strategy2()
         for rule in self.rule_set:
             rule = rule(self.state)
             action = rule.rule_to_action()
@@ -69,7 +69,7 @@ class AgentDeployer:
 
 
 if __name__ == '__main__':
-    agent_number = 5
+    agent_number = 2
     agents_deployers = []
     game_number = 100
     scores: List[int] = []

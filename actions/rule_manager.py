@@ -151,7 +151,7 @@ class RuleManager:
 
         return ruleset
 
-    def five_players_strategy(self):
+    def most_info_strategy(self):
 
         next_player = False
 
@@ -161,10 +161,6 @@ class RuleManager:
             lambda state: HintPlayableCard(state, next_player),
             lambda state: PlayUsefulCard(state, usefulness_threshold=0.7),
             lambda state: DiscardDispensableCard(state, dispensable_threshold=0.7),
-            lambda state: HintFullKnowledge(state, check="playable", next_player=next_player),
-            lambda state: HintFullKnowledge(state, check="useful", next_player=next_player),
-            lambda state: HintFullKnowledge(state, check="dispensable", next_player=next_player),
-            lambda state: HintFullKnowledge(state, check="useless", next_player=next_player),
             lambda state: HintMostInformation(state, next_player=next_player),
             lambda state: PlayUsefulCard(state, usefulness_threshold=0.4),
             lambda state: DiscardDispensableCard(state, dispensable_threshold=0.5),
@@ -172,3 +168,27 @@ class RuleManager:
             lambda state: HintUnknown(state, next_player=next_player),
             lambda state: DiscardRandomCard(state)
         ]
+
+    def most_info_strategy2(self):
+
+        next_player = False
+
+        ruleset = [
+            lambda state: PlaySafeCard(state),
+            lambda state: DiscardUselessCard(state),
+            lambda state: HintPlayableCard(state, next_player),
+            lambda state: PlayUsefulCard(state, usefulness_threshold=0.7),
+            lambda state: DiscardDispensableCard(state, dispensable_threshold=0.7)]
+
+        if self.state.used_blue_token > 4:
+            ruleset.append(lambda state: HintFullKnowledge(state, check="playable", next_player=next_player))
+            ruleset.append(lambda state: HintFullKnowledge(state, check="useless", next_player=next_player))
+
+        ruleset.extend([lambda state: HintMostInformation(state, next_player=next_player),
+                        lambda state: PlayUsefulCard(state, usefulness_threshold=0.4),
+                        lambda state: DiscardDispensableCard(state, dispensable_threshold=0.5),
+                        lambda state: DiscardOldestUnhintedCard(state),
+                        lambda state: HintUnknown(state, next_player=next_player),
+                        lambda state: DiscardRandomCard(state)])
+
+        return ruleset

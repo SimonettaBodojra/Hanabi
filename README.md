@@ -64,3 +64,12 @@ Arguments:
 + NumGames: number of games that can be consequently played (integer value)
 + StepByStep: for debug purposes, it can stop the game between agents at each round (bool value)
 
+## Best Results
+
+| NumAgents | Score | Strategy                                   | Score File Reference     |
+|-----------|-------|--------------------------------------------|--------------------------|
+| 2         | 17.09 | most_info_strategy                         | scores/2 players/game_7  |
+| 3         | 16.24 | two_player_strategy1 (next_player = False) | scores/3 players/game_2  |
+| 4         | 15.55 | most_info_strategy (next_player = False)   | scores/4 players/game_8  |
+| 5         | 13.85 | most_info_strategy2 (next_player False)    | scores/4 players/game_11 |
+
