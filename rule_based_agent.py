@@ -36,7 +36,7 @@ class RuleBasedAgent(Client):
         if self.step_by_step:
             input("PRESS ENTER TO CONTINUE")
 
-        self.rule_set = RuleManager(self.state).two_player_strategy1()
+        self.rule_set = RuleManager(self.state).five_players_strategy()
         for rule in self.rule_set:
             rule = rule(self.state)
             action = rule.rule_to_action()
@@ -78,10 +78,14 @@ if __name__ == '__main__':
 
     args = sys.argv
     if len(args) == 2:
-        agent_prefix = args[1]
+        agent_number = int(args[1])
     elif len(args) == 3:
-        agent_prefix = args[1]
-        step_by_step = True if args[2] == 'true' else False
+        agent_number = int(args[1])
+        game_number = int(args[2])
+    elif len(args) == 4:
+        agent_number = int(args[1])
+        game_number = int(args[2])
+        step_by_step = True if args[3] == 'true' else False
 
     for a in range(agent_number):
         name = f"{agent_prefix}{a}"
@@ -130,7 +134,7 @@ AVG SCORE:
     if len(score_dirs) == 0:
         new_file = "game_1"
     else:
-        last_game_file = score_dirs[-1]
+        last_game_file = sorted(score_dirs, key=lambda x: int(x[5:]))[-1]
         file_number = int(last_game_file[5:]) + 1
         new_file = f"game_{file_number}"
 

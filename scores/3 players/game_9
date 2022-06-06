@@ -1,5 +1,5 @@
 
-STRATEGY = two_player_strategy3 (next_player False)
+STRATEGY = just_hinted_strategy (next_player False)
 
     
 ************** MATCH WITH 3 players **************

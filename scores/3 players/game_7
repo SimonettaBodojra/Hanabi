@@ -1,5 +1,5 @@
 
-STRATEGY = two_players_if_strategy (hint limited at 7 tokens)
+STRATEGY = my_if_strategy (hint limited at 7 tokens)
 
     
 ************** MATCH WITH 3 players **************
@@ -11,4 +11,3 @@ GAME SCORES:
 
 AVG SCORE:
 8.54
-    

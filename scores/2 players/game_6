@@ -1,8 +1,6 @@
 
-STRATEGY = two_player_strategy3
+STRATEGY = just_hinted_strategy
 
-
-    
 ************** MATCH WITH 2 players **************
 AGENTS:
 ['agent0', 'agent1']

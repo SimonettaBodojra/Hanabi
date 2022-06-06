@@ -1,5 +1,5 @@
 
-STRATEGY = two_players_if_strategy (hint limited at 5 tokens)
+STRATEGY = my_if_strategy (hint limited at 5 tokens)
 
     
 ************** MATCH WITH 3 players **************

@@ -177,13 +177,7 @@ class AgentState:
         self.is_state_updated = True
 
     @staticmethod
-    def __update_card_current_belief2(card: HiddenCard,
-                                      remaining_hidden_cards,
-                                      all_observable_cards,
-                                      played_color_cards,
-                                      played_value_cards,
-                                      hinted_color_count,
-                                      hinted_value_count):
+    def __update_card_current_belief(card: HiddenCard, all_observable_cards):
 
         # se è stato hintato il colore setto le probabilità di quel colore a 1 e il resto a 0
         if card.hasColorHint():
@@ -299,15 +293,9 @@ class AgentState:
 
         all_observable_cards = self.get_observable_cards()
         played_color_cards, played_value_cards = self.get_cards_of_color_value()
-        hinted_color_count, hinted_value_count = self.get_count_hinted_cards()
-
-        played_cards_count = sum([count for count in played_color_cards.values()])
-        remaining_hidden_cards = DECK_SIZE - played_cards_count
 
         for card in self.hand:
-            AgentState.__update_card_current_belief2(card, remaining_hidden_cards, all_observable_cards,
-                                                     played_color_cards,
-                                                     played_value_cards, hinted_color_count, hinted_value_count)
+            AgentState.__update_card_current_belief(card, all_observable_cards)
 
     def get_playable_cards(self) -> Dict[Color, Value]:
         return {color: Value(value + 1) for color, value in self.fireworks.items() if value != Value.FIVE.value}

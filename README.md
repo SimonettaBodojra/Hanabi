@@ -49,3 +49,18 @@ Commands for client:
   + type: 'color' or 'value'
   + destinatary: name of the person you want to ask the hint to
 + discard \<num>: discard the card *num* (\[0-4]) from your hand
+
+## Rule Based Agent
+
+To start the server:
+
+```bash
+python rule_based_agent.py <NumAgents> <NumGames> <StepByStep>
+```
+
+Arguments:
+
++ NumAgents: number of agents (integer value, max=5 min=2)
++ NumGames: number of games that can be consequently played (integer value)
++ StepByStep: for debug purposes, it can stop the game between agents at each round (bool value)
+
